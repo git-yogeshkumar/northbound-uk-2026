@@ -1345,6 +1345,14 @@ body { background: #e7e4de; }
 .flight-card .flight-route { min-width: 0; gap: 10px; }
 .flight-card .flight-route > svg { flex: 0 0 auto; width: 19px; height: 19px; color: #64d2ff; }
 .flight-card .airport { min-width: 0; color: #fff; font-size: clamp(27px, 5vw, 36px); font-weight: 600; line-height: 1; white-space: nowrap; }
+.flight-schedule { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 8px; align-items: stretch; margin-top: 18px; }
+.flight-time { display: grid; min-width: 0; gap: 5px; padding: 11px; border-radius: 12px; background: rgba(255,255,255,.07); }
+.flight-time.arrival { text-align: right; }
+.flight-time small, .flight-duration small { color: rgba(255,255,255,.5); font-size: 8px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.flight-time strong { color: #fff; font-size: 11px; line-height: 1.35; }
+.flight-duration { display: grid; min-width: 76px; place-content: center; justify-items: center; gap: 3px; padding: 8px; border-radius: 12px; background: rgba(100,210,255,.12); text-align: center; }
+.flight-duration > svg { width: 15px; height: 15px; color: #64d2ff; }
+.flight-duration strong { max-width: 110px; color: #64d2ff; font-size: 12px; line-height: 1.25; }
 .flight-card .flight-date { color: rgba(255,255,255,.68); }
 .flight-card .countdown { display: flex; align-items: flex-start; gap: 8px; background: rgba(255,255,255,.09); color: #f5f5f7; line-height: 1.45; }
 .flight-card .countdown svg { flex: 0 0 auto; width: 16px; height: 16px; margin-top: 1px; color: #64d2ff; }
@@ -1355,7 +1363,12 @@ body { background: #e7e4de; }
   .card.flight-card { min-height: 0; padding: 20px; border-radius: 22px; }
   .flight-card .flight-route { gap: 7px; }
   .flight-card .airport { font-size: clamp(25px, 9vw, 32px); }
-  .flight-card .countdown { margin-top: 15px; padding: 10px; }
+  .flight-schedule { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; margin-top: 15px; }
+  .flight-time { padding: 10px; }
+  .flight-time.arrival { grid-column: 2; grid-row: 1; }
+  .flight-duration { grid-column: 1 / -1; grid-row: 2; display: flex; min-width: 0; align-items: center; justify-content: center; gap: 7px; padding: 8px; }
+  .flight-duration strong { max-width: none; }
+  .flight-card .countdown { margin-top: 12px; padding: 10px; }
   .flight-card .stop-actions { gap: 6px; }
   .flight-card .button.ghost.small { flex: 1 1 auto; min-width: 0; padding-right: 9px; padding-left: 9px; }
 }

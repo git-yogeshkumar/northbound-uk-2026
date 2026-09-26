@@ -42,7 +42,8 @@ const iconPaths = {
   chevron: '<path d="m9 18 6-6-6-6"/>',
   locate: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/>',
   spark: '<path d="m12 3-1.2 4.2L7 9l3.8 1.8L12 15l1.2-4.2L17 9l-3.8-1.8zM5 15l-.7 2.3L2 18l2.3.7L5 21l.7-2.3L8 18l-2.3-.7z"/>',
-  lock: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>'
+  lock: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"/>'
 }
 
 const icon = (name) => `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${iconPaths[name] || iconPaths.compass}</svg>`
@@ -198,6 +199,7 @@ const state = {
   rateLoading: false,
   converterAmount: store.get('northbound-converter-amount', '1'),
   flights: store.get('northbound-flights', []),
+  editingFlightIndex: null,
   modal: null,
   installPrompt: null,
   location: null,
@@ -600,8 +602,44 @@ function renderPrep() {
   return `<div class="section-head"><div><div class="eyebrow">Before the trip</div><h2>Ready, without the scramble</h2><p>Everything important, saved locally and available offline.</p></div></div><div class="tabs prep-tabs" role="tablist" aria-label="Preparation sections">${tabs.map(([id,label]) => `<button class="tab ${state.prepTab === id ? 'active' : ''}" data-action="prep-tab" data-tab="${id}">${label}</button>`).join('')}</div><section class="section" style="margin-top:18px">${content}</section>`
 }
 
-function formatFlightDate(value) {
-  if (!value) return 'Departure time not set'
+const airportTimeZones = new Map([
+  ['DEL','Asia/Kolkata'], ['BOM','Asia/Kolkata'], ['BLR','Asia/Kolkata'], ['HYD','Asia/Kolkata'], ['MAA','Asia/Kolkata'], ['CCU','Asia/Kolkata'], ['COK','Asia/Kolkata'], ['AMD','Asia/Kolkata'], ['PNQ','Asia/Kolkata'], ['GOI','Asia/Kolkata'],
+  ['LHR','Europe/London'], ['LGW','Europe/London'], ['STN','Europe/London'], ['LTN','Europe/London'], ['LCY','Europe/London'], ['MAN','Europe/London'], ['BHX','Europe/London'], ['EDI','Europe/London'], ['GLA','Europe/London'], ['INV','Europe/London'],
+  ['DXB','Asia/Dubai'], ['AUH','Asia/Dubai'], ['DOH','Asia/Qatar'], ['IST','Europe/Istanbul'], ['FRA','Europe/Berlin'], ['AMS','Europe/Amsterdam'], ['CDG','Europe/Paris'], ['ZRH','Europe/Zurich'], ['SIN','Asia/Singapore'], ['JFK','America/New_York'], ['EWR','America/New_York']
+])
+
+function zonedFlightDate(value, airport) {
+  if (!value) return null
+  const zone = airportTimeZones.get(String(airport || '').toUpperCase())
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  if (!zone || !match) return null
+  const [, year, month, day, hour, minute] = match.map(Number)
+  const wallTime = Date.UTC(year, month - 1, day, hour, minute)
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+  let instant = wallTime
+  for (let pass = 0; pass < 2; pass += 1) {
+    const parts = Object.fromEntries(formatter.formatToParts(new Date(instant)).filter(part => part.type !== 'literal').map(part => [part.type, Number(part.value)]))
+    const represented = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute)
+    instant += wallTime - represented
+  }
+  return new Date(instant)
+}
+
+function flightDurationText(flight) {
+  if (!flight.arrival) return 'Arrival not set'
+  const departure = zonedFlightDate(flight.departure, flight.from)
+  const arrival = zonedFlightDate(flight.arrival, flight.to)
+  if (!departure || !arrival) return 'Duration needs recognised airport codes'
+  const minutes = Math.round((arrival - departure) / 60000)
+  if (minutes <= 0) return 'Check arrival date and time'
+  const days = Math.floor(minutes / 1440)
+  const hours = Math.floor((minutes % 1440) / 60)
+  const remaining = minutes % 60
+  return `${days ? `${days}d ` : ''}${hours ? `${hours}h ` : ''}${remaining ? `${remaining}m` : ''}`.trim()
+}
+
+function formatFlightDate(value, fallback = 'Time not set') {
+  if (!value) return fallback
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -609,7 +647,8 @@ function formatFlightDate(value) {
 
 function checkinText(flight) {
   if (!flight.departure) return 'Add departure time to calculate check-in'
-  const opens = new Date(new Date(flight.departure).getTime() - (Number(flight.checkinHours) || 24) * 3600000)
+  const departure = zonedFlightDate(flight.departure, flight.from) || new Date(flight.departure)
+  const opens = new Date(departure.getTime() - (Number(flight.checkinHours) || 24) * 3600000)
   const diff = opens - new Date()
   if (diff <= 0) return `Check-in opened ${formatFlightDate(opens.toISOString())}`
   const hours = Math.floor(diff / 3600000)
@@ -618,17 +657,21 @@ function checkinText(flight) {
 }
 
 function flightCard(flight, index) {
-  return `<article class="card flight-card"><div class="flight-code">${escapeHtml(flight.airline || 'AIRLINE')} · ${escapeHtml(flight.flightNumber || 'FLIGHT')}</div><div class="flight-route"><span class="airport">${escapeHtml(flight.from || 'FROM')}</span><span class="route-line"></span>${icon('plane')}<span class="airport">${escapeHtml(flight.to || 'TO')}</span></div><div class="flight-date">${formatFlightDate(flight.departure)}</div><div class="countdown">${icon('clock')} ${checkinText(flight)}</div><div class="stop-actions"><button class="button ghost small" data-action="calendar-flight" data-index="${index}">${icon('calendar')} Add calendar</button>${safeUrl(flight.airlineUrl) ? `<a class="button ghost small" href="${escapeHtml(safeUrl(flight.airlineUrl))}" target="_blank" rel="noopener">Airline ${icon('external')}</a>` : ''}<button class="button ghost small" data-action="delete-flight" data-index="${index}">${icon('trash')} Remove</button></div></article>`
+  const duration = flightDurationText(flight)
+  return `<article class="card flight-card"><div class="flight-code">${escapeHtml(flight.airline || 'AIRLINE')} · ${escapeHtml(flight.flightNumber || 'FLIGHT')}</div><div class="flight-route"><span class="airport">${escapeHtml(flight.from || 'FROM')}</span><span class="route-line"></span>${icon('plane')}<span class="airport">${escapeHtml(flight.to || 'TO')}</span></div><div class="flight-schedule"><div class="flight-time"><small>Departs · ${escapeHtml(flight.from || '—')}</small><strong>${formatFlightDate(flight.departure, 'Departure not set')}</strong></div><div class="flight-duration">${icon('clock')}<small>Travel time</small><strong>${escapeHtml(duration)}</strong></div><div class="flight-time arrival"><small>Arrives · ${escapeHtml(flight.to || '—')}</small><strong>${formatFlightDate(flight.arrival, 'Arrival not set')}</strong></div></div><div class="countdown">${icon('clock')}<span>${checkinText(flight)}</span></div><div class="stop-actions"><button class="button ghost small" data-action="edit-flight" data-index="${index}">${icon('edit')} Edit</button><button class="button ghost small" data-action="calendar-flight" data-index="${index}">${icon('calendar')} Calendar</button>${safeUrl(flight.airlineUrl) ? `<a class="button ghost small" href="${escapeHtml(safeUrl(flight.airlineUrl))}" target="_blank" rel="noopener">Airline ${icon('external')}</a>` : ''}<button class="button ghost small" data-action="delete-flight" data-index="${index}">${icon('trash')} Remove</button></div></article>`
 }
 
 function renderFlights() {
-  return `<div class="section-head"><div><div class="eyebrow">Flight desk</div><h2>Check in on time</h2><p>Import, paste or enter flight details. Countdown and calendar reminders work without an account.</p></div></div><div class="privacy">${icon('lock')}<span>Flight details and booking references stay only in this browser’s local storage. Northbound does not transmit them to a server. Live flight status requires the airline’s own link or app.</span></div><div class="hero-actions" style="margin-top:16px"><button class="button" data-action="open-flight">${icon('plus')} Add flight</button><button class="button secondary" data-action="open-import">${icon('upload')} Paste or import</button></div><section class="section">${state.flights.length ? `<div class="grid two">${state.flights.map(flightCard).join('')}</div>` : `<div class="empty"><span class="card-icon">${icon('plane')}</span><h3>No flights added yet</h3><p>Add details manually, paste an itinerary, or import an .ics/.txt file. We’ll calculate the check-in window.</p><button class="button" data-action="open-import">Import details</button></div>`}</section><section class="section"><div class="grid three"><div class="card"><div class="card-icon coral">${icon('clock')}</div><h3 style="margin-top:13px">Check-in reminder</h3><p>Uses the airline’s opening window you set, usually 24 or 48 hours.</p></div><div class="card"><div class="card-icon sun">${icon('calendar')}</div><h3 style="margin-top:13px">Calendar file</h3><p>Download a private .ics reminder for Apple, Google or Outlook calendars.</p></div><div class="card"><div class="card-icon">${icon('shield')}</div><h3 style="margin-top:13px">Local by design</h3><p>No account and no booking data sent to Northbound.</p></div></div></section>`
+  return `<div class="section-head"><div><div class="eyebrow">Flight desk</div><h2>Check in on time</h2><p>Track departure, arrival, travel time and check-in. Edit changes anytime without creating a duplicate.</p></div></div><div class="privacy">${icon('lock')}<span>Flight details and booking references stay only in this browser’s local storage. Northbound does not transmit them to a server. Live flight status requires the airline’s own link or app.</span></div><div class="hero-actions" style="margin-top:16px"><button class="button" data-action="open-flight">${icon('plus')} Add flight</button><button class="button secondary" data-action="open-import">${icon('upload')} Paste or import</button></div><section class="section">${state.flights.length ? `<div class="grid two">${state.flights.map(flightCard).join('')}</div>` : `<div class="empty"><span class="card-icon">${icon('plane')}</span><h3>No flights added yet</h3><p>Add details manually, paste an itinerary, or import an .ics/.txt file. We’ll calculate the travel time and check-in window.</p><button class="button" data-action="open-import">Import details</button></div>`}</section><section class="section"><div class="grid three"><div class="card"><div class="card-icon coral">${icon('clock')}</div><h3 style="margin-top:13px">Check-in reminder</h3><p>Uses the airline’s opening window you set, usually 24 or 48 hours.</p></div><div class="card"><div class="card-icon sun">${icon('calendar')}</div><h3 style="margin-top:13px">Calendar file</h3><p>Download a private .ics reminder for Apple, Google or Outlook calendars.</p></div><div class="card"><div class="card-icon">${icon('shield')}</div><h3 style="margin-top:13px">Local by design</h3><p>No account and no booking data sent to Northbound.</p></div></div></section>`
 }
 
 function renderModal() {
   if (!state.modal) return ''
-  if (state.modal === 'flight') return `<div class="modal-backdrop" data-action="close-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="flight-title" data-modal-body><div class="modal-head"><div><div class="eyebrow">Private on this device</div><h2 id="flight-title">Add flight</h2></div><button class="icon-button" data-action="close-modal" aria-label="Close">${icon('x')}</button></div><form id="flight-form"><div class="form-row two"><div class="field"><label for="airline">Airline</label><input id="airline" name="airline" placeholder="British Airways" required></div><div class="field"><label for="flightNumber">Flight number</label><input id="flightNumber" name="flightNumber" placeholder="BA142" required></div><div class="field"><label for="from">From airport</label><input id="from" name="from" placeholder="DEL" maxlength="4" required></div><div class="field"><label for="to">To airport</label><input id="to" name="to" placeholder="LHR" maxlength="4" required></div><div class="field"><label for="departure">Local departure</label><input id="departure" name="departure" type="datetime-local" required></div><div class="field"><label for="checkinHours">Check-in opens before</label><select id="checkinHours" name="checkinHours"><option value="24">24 hours</option><option value="48">48 hours</option><option value="72">72 hours</option></select></div></div><div class="form-row two" style="margin-top:12px"><div class="field"><label for="bookingRef">Booking reference (optional)</label><input id="bookingRef" name="bookingRef" autocomplete="off"></div><div class="field"><label for="airlineUrl">Airline manage-booking URL</label><input id="airlineUrl" name="airlineUrl" type="url" placeholder="https://…"></div></div><button class="button full" type="submit" style="margin-top:18px">Save flight</button></form></div></div>`
-  return `<div class="modal-backdrop" data-action="close-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="import-title" data-modal-body><div class="modal-head"><div><div class="eyebrow">Import assistant</div><h2 id="import-title">Paste itinerary</h2></div><button class="icon-button" data-action="close-modal" aria-label="Close">${icon('x')}</button></div><div class="field"><label for="import-text">Booking email, plain text or ICS content</label><textarea id="import-text" placeholder="Paste your flight confirmation here…"></textarea><span class="field-help">The parser looks for airline/flight number, airport codes and an ICS departure date. Always verify parsed details before saving.</span></div><div class="field" style="margin-top:12px"><label for="flight-file">Or choose .ics or .txt</label><input id="flight-file" type="file" accept=".ics,.txt,text/calendar,text/plain"></div><button class="button full" data-action="parse-flight" style="margin-top:18px">Parse into flight form</button></div></div>`
+  if (state.modal === 'flight') {
+    const editing = state.editingFlightIndex !== null
+    return `<div class="modal-backdrop" data-action="close-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="flight-title" data-modal-body><div class="modal-head"><div><div class="eyebrow">Private on this device</div><h2 id="flight-title">${editing ? 'Edit flight' : 'Add flight'}</h2></div><button class="icon-button" data-action="close-modal" aria-label="Close">${icon('x')}</button></div><form id="flight-form"><div class="form-row two"><div class="field"><label for="airline">Airline</label><input id="airline" name="airline" placeholder="British Airways" required></div><div class="field"><label for="flightNumber">Flight number</label><input id="flightNumber" name="flightNumber" placeholder="BA142" required></div><div class="field"><label for="from">From airport</label><input id="from" name="from" placeholder="DEL" maxlength="4" required></div><div class="field"><label for="to">To airport</label><input id="to" name="to" placeholder="LHR" maxlength="4" required></div><div class="field"><label for="departure">Local departure</label><input id="departure" name="departure" type="datetime-local" required></div><div class="field"><label for="arrival">Local arrival</label><input id="arrival" name="arrival" type="datetime-local" required><span class="field-help">Travel time uses the origin and destination airport time zones.</span></div><div class="field"><label for="checkinHours">Check-in opens before</label><select id="checkinHours" name="checkinHours"><option value="24">24 hours</option><option value="48">48 hours</option><option value="72">72 hours</option></select></div></div><div class="form-row two" style="margin-top:12px"><div class="field"><label for="bookingRef">Booking reference (optional)</label><input id="bookingRef" name="bookingRef" autocomplete="off"></div><div class="field"><label for="airlineUrl">Airline manage-booking URL</label><input id="airlineUrl" name="airlineUrl" type="url" placeholder="https://…"></div></div><button class="button full" type="submit" style="margin-top:18px">${editing ? 'Update flight' : 'Save flight'}</button></form></div></div>`
+  }
+  return `<div class="modal-backdrop" data-action="close-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="import-title" data-modal-body><div class="modal-head"><div><div class="eyebrow">Import assistant</div><h2 id="import-title">Paste itinerary</h2></div><button class="icon-button" data-action="close-modal" aria-label="Close">${icon('x')}</button></div><div class="field"><label for="import-text">Booking email, plain text or ICS content</label><textarea id="import-text" placeholder="Paste your flight confirmation here…"></textarea><span class="field-help">The parser looks for airline/flight number, airport codes, departure and arrival times. Always verify parsed details before saving.</span></div><div class="field" style="margin-top:12px"><label for="flight-file">Or choose .ics or .txt</label><input id="flight-file" type="file" accept=".ics,.txt,text/calendar,text/plain"></div><button class="button full" data-action="parse-flight" style="margin-top:18px">Parse into flight form</button></div></div>`
 }
 
 function render() {
@@ -825,26 +868,40 @@ function parseImport(text) {
   const flightMatch = unfolded.match(/(?:flight(?:\s*(?:number|no\.?))?[:\s#-]*)?\b([A-Z0-9]{2,3})\s?-?\s?(\d{2,4})\b/i)
   const codes = [...unfolded.toUpperCase().matchAll(/\b[A-Z]{3}\b/g)].map(match => match[0]).filter(code => !['THE','AND','FOR','UTC','GMT','ARR','DEP','FROM'].includes(code))
   const dtMatch = unfolded.match(/DTSTART(?:;[^:]+)?:([0-9]{8}T[0-9]{4,6}Z?)/i)
+  const dtEndMatch = unfolded.match(/DTEND(?:;[^:]+)?:([0-9]{8}T[0-9]{4,6}Z?)/i)
   const summary = unfolded.match(/SUMMARY:(.+)/i)?.[1]?.trim() || ''
-  let departure = ''
-  if (dtMatch) {
-    const raw = dtMatch[1]
-    departure = `${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}T${raw.slice(9,11)}:${raw.slice(11,13)}`
-  } else {
+  const icsLocal = (raw, airport) => {
+    if (!raw) return ''
+    const simple = `${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}T${raw.slice(9,11)}:${raw.slice(11,13)}`
+    const zone = airportTimeZones.get(airport)
+    if (!raw.endsWith('Z') || !zone) return simple
+    const instant = new Date(Date.UTC(Number(raw.slice(0,4)), Number(raw.slice(4,6)) - 1, Number(raw.slice(6,8)), Number(raw.slice(9,11)), Number(raw.slice(11,13))))
+    const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    const parts = Object.fromEntries(formatter.formatToParts(instant).filter(part => part.type !== 'literal').map(part => [part.type, part.value]))
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`
+  }
+  let departure = icsLocal(dtMatch?.[1], codes[0])
+  let arrival = icsLocal(dtEndMatch?.[1], codes[1])
+  if (!departure) {
     const isoMatch = unfolded.match(/\b(2026-[01]\d-[0-3]\d)[ T](\d{2}):?(\d{2})\b/)
     if (isoMatch) departure = `${isoMatch[1]}T${isoMatch[2]}:${isoMatch[3]}`
+  }
+  if (!arrival) {
+    const arrivalMatch = unfolded.match(/(?:arrival|arrives?|landing)[^0-9]*(2026-[01]\d-[0-3]\d)[ T](\d{2}):?(\d{2})/i)
+    if (arrivalMatch) arrival = `${arrivalMatch[1]}T${arrivalMatch[2]}:${arrivalMatch[3]}`
   }
   return {
     airline: summary.split(/[-–|]/)[0]?.trim() || '',
     flightNumber: flightMatch ? `${flightMatch[1].toUpperCase()}${flightMatch[2]}` : '',
     from: codes[0] || '',
     to: codes[1] || '',
-    departure,
+    departure, arrival,
     checkinHours: '24', bookingRef: '', airlineUrl: ''
   }
 }
 
-function prefillFlightForm(data) {
+function prefillFlightForm(data, index = null) {
+  state.editingFlightIndex = index
   state.modal = 'flight'
   render()
   Object.entries(data).forEach(([key, value]) => {
@@ -857,21 +914,34 @@ function saveFlight(form) {
   const data = Object.fromEntries(new FormData(form).entries())
   data.from = data.from.toUpperCase()
   data.to = data.to.toUpperCase()
-  state.flights.push(data)
+  const departure = zonedFlightDate(data.departure, data.from)
+  const arrival = zonedFlightDate(data.arrival, data.to)
+  if (departure && arrival && arrival <= departure) {
+    const arrivalInput = form.querySelector('[name="arrival"]')
+    arrivalInput.setCustomValidity('Arrival must be after departure after accounting for airport time zones.')
+    arrivalInput.reportValidity()
+    arrivalInput.addEventListener('input', () => arrivalInput.setCustomValidity(''), { once: true })
+    return
+  }
+  const editing = state.editingFlightIndex !== null
+  if (editing) state.flights[state.editingFlightIndex] = data
+  else state.flights.push(data)
   store.set('northbound-flights', state.flights)
+  state.editingFlightIndex = null
   state.modal = null
   render()
-  toast('Flight saved locally')
+  toast(editing ? 'Flight updated' : 'Flight saved locally')
 }
 
 function calendarFlight(index) {
   const flight = state.flights[index]
   if (!flight?.departure) return toast('Add a departure time first')
-  const departure = new Date(flight.departure)
-  const end = new Date(departure.getTime() + 3 * 3600000)
+  const departure = zonedFlightDate(flight.departure, flight.from) || new Date(flight.departure)
+  const scheduledArrival = zonedFlightDate(flight.arrival, flight.to)
+  const end = scheduledArrival && scheduledArrival > departure ? scheduledArrival : new Date(departure.getTime() + 3 * 3600000)
   const checkin = new Date(departure.getTime() - (Number(flight.checkinHours) || 24) * 3600000)
   const icsDate = value => value.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
-  const body = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Northbound//UK 2026//EN','BEGIN:VEVENT',`UID:${Date.now()}@northbound`,`DTSTAMP:${icsDate(new Date())}`,`DTSTART:${icsDate(departure)}`,`DTEND:${icsDate(end)}`,`SUMMARY:${flight.flightNumber} ${flight.from} to ${flight.to}`,`DESCRIPTION:Check-in opens ${checkin.toLocaleString('en-GB')}. Verify times with ${flight.airline || 'the airline'}.`,'BEGIN:VALARM',`TRIGGER:-PT${Number(flight.checkinHours) || 24}H`,'ACTION:DISPLAY','DESCRIPTION:Online check-in opens','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n')
+  const body = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Northbound//UK 2026//EN','BEGIN:VEVENT',`UID:${Date.now()}@northbound`,`DTSTAMP:${icsDate(new Date())}`,`DTSTART:${icsDate(departure)}`,`DTEND:${icsDate(end)}`,`SUMMARY:${flight.flightNumber} ${flight.from} to ${flight.to}`,`DESCRIPTION:Scheduled travel time ${flightDurationText(flight)}. Check-in opens ${checkin.toLocaleString('en-GB')}. Verify times with ${flight.airline || 'the airline'}.`,'BEGIN:VALARM',`TRIGGER:-PT${Number(flight.checkinHours) || 24}H`,'ACTION:DISPLAY','DESCRIPTION:Online check-in opens','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n')
   const url = URL.createObjectURL(new Blob([body], { type: 'text/calendar' }))
   const link = document.createElement('a')
   link.href = url
@@ -998,11 +1068,11 @@ app.addEventListener('click', event => {
     navigator.geolocation.getCurrentPosition(position => { state.location = position.coords; render(); toast('Location ready for nearby navigation') }, () => toast('Location permission was not granted'), { enableHighAccuracy: true, timeout: 10000 })
     return
   }
-  if (action === 'open-flight') { state.modal = 'flight'; render(); return }
-  if (action === 'open-import') { state.modal = 'import'; render(); return }
+  if (action === 'open-flight') { state.editingFlightIndex = null; state.modal = 'flight'; render(); return }
+  if (action === 'open-import') { state.editingFlightIndex = null; state.modal = 'import'; render(); return }
   if (action === 'close-modal') {
     if (target.classList.contains('modal-backdrop') && event.target !== target) return
-    state.modal = null; render(); return
+    state.editingFlightIndex = null; state.modal = null; render(); return
   }
   if (action === 'parse-flight') {
     const text = document.querySelector('#import-text')?.value.trim()
@@ -1010,6 +1080,7 @@ app.addEventListener('click', event => {
     prefillFlightForm(parseImport(text))
     return
   }
+  if (action === 'edit-flight') return prefillFlightForm(state.flights[Number(target.dataset.index)], Number(target.dataset.index))
   if (action === 'calendar-flight') return calendarFlight(Number(target.dataset.index))
   if (action === 'delete-flight') {
     const index = Number(target.dataset.index)
