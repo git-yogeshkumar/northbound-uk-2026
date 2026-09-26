@@ -1,0 +1,10 @@
+{
+  "name": "northbound-uk-2026",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 4173",
+    "check": "node --check app.js && node --check data.js && node --check sw.js && python3 -m json.tool manifest.webmanifest >/dev/null"
+  }
+}
