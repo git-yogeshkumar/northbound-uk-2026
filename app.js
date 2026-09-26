@@ -70,6 +70,9 @@ const safeUrl = value => {
 
 const routeOrigins = new Map([
   ['Heathrow → hostel', 'Heathrow Airport'],
+  ['Hostel → Sky Garden', "Wombat's City Hostel London"],
+  ['Covent Garden → Marble Arch', 'Covent Garden London'],
+  ['Rental return → hostel', 'Edinburgh Waverley Station'],
   ['Tower Hill → Westminster', 'Tower Hill Underground Station'],
   ['The Mall → Trafalgar Square', 'Buckingham Palace London'],
   ['Trafalgar → Covent Garden', 'Trafalgar Square London'],
@@ -89,6 +92,8 @@ const routeOrigins = new Map([
   ['Princes Street → Waterstones', 'Princes Street Edinburgh']
 ])
 const citymapperRoutes = new Map([
+  ['Hostel → Sky Garden', { startCoord: '51.5104,-0.0681', startName: "Wombat's City Hostel", startAddress: '7 Dock Street, London E1 8LL', endCoord: '51.5113,-0.0836', endName: 'Sky Garden', endAddress: '1 Sky Garden Walk, London EC3M 8AF' }],
+  ['Covent Garden → Marble Arch', { startCoord: '51.5125,-0.1225', startName: 'Covent Garden', startAddress: 'Covent Garden Piazza, London WC2E', endCoord: '51.5131,-0.1589', endName: 'Marble Arch', endAddress: 'Marble Arch, London W1H 7EJ' }],
   ['Heathrow → hostel', { startCoord: '51.477500,-0.461389', startName: 'Heathrow Airport', startAddress: 'Heathrow Airport, London', endCoord: '51.5104,-0.0681', endName: "Wombat's City Hostel", endAddress: '7 Dock Street, London E1 8LL' }],
   ['Tower Hill → Westminster', { startCoord: '51.509975,-0.07654', startName: 'Tower Hill Station', startAddress: 'Tower Hill, London EC3N', endCoord: '51.500453,-0.124052', endName: 'Westminster Station', endAddress: 'Bridge Street, London SW1A' }],
   ['The Mall → Trafalgar Square', { startCoord: '51.501364,-0.14189', startName: 'Buckingham Palace', startAddress: 'London SW1A 1AA', endCoord: '51.50805,-0.12816', endName: 'Trafalgar Square', endAddress: 'Trafalgar Square, London WC2N' }],
@@ -103,6 +108,7 @@ const citymapperRoutes = new Map([
 const citymapperPlaces = new Map([
   ["Wombat's City Hostel London", '51.5104,-0.0681', "Wombat's City Hostel", '7 Dock Street, London E1 8LL'],
   ['St Katharine Docks London', '51.5079,-0.0710', 'St Katharine Docks', 'St Katharine Docks, London E1W'],
+  ['Sky Garden London', '51.5113,-0.0836', 'Sky Garden', '1 Sky Garden Walk, London EC3M 8AF'],
   ['Westminster Underground Station', '51.500453,-0.124052', 'Westminster Station', 'Bridge Street, London SW1A'],
   ['Big Ben London', '51.500729,-0.124625', 'Big Ben', 'Westminster, London SW1A 0AA'],
   ["St James's Park London", '51.502459,-0.134810', "St James's Park", 'London SW1A 2BJ'],
@@ -165,7 +171,7 @@ const photoSearchAliases = new Map([
   ['Lannan Bakery Edinburgh', null]
 ])
 const verifiedPhotoQueries = new Set([
-  'Big Ben Westminster London', 'Edinburgh Castle Scotland', 'St Katharine Docks London', 'Big Ben London',
+  'Big Ben Westminster London', 'Edinburgh Castle Scotland', 'St Katharine Docks London', 'Sky Garden London', 'Big Ben London',
   "St James's Park London", 'Buckingham Palace London', 'The National Gallery London', 'Covent Garden London',
   'Tower of London', 'Tower Bridge London', 'Borough Market London', "Shakespeare's Globe London", 'London Eye',
   'Westminster Pier London', 'Battersea Power Station Pier', 'Battersea Power Station', "Neal's Yard London",
@@ -318,7 +324,7 @@ function renderToday() {
   </section>
   <section class="section"><div class="grid two">
     <div class="card highlight"><div class="card-top"><div><div class="eyebrow">Use your location</div><h3>${state.location ? locationSummary(dayIndex) : 'Navigate from wherever you are'}</h3></div><span class="card-icon coral">${icon('locate')}</span></div><p>Location is only used in this browser and is never uploaded by Northbound.</p><div class="stop-actions"><button class="button secondary small" data-action="locate">${icon('locate')} ${state.location ? 'Refresh location' : 'Use my location'}</button>${state.location ? `<a class="button secondary small" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=vegetarian+food&query_place_id=">${icon('map')} Nearby food</a>` : ''}</div></div>
-    <div class="card"><div class="card-top"><div><div class="eyebrow">Practical correction</div><h3>Plan changed for daylight</h3></div><span class="card-icon sun">${icon('sun')}</span></div><p>Calton Hill now lands at the 16:43 sunset, and FRAMELESS moves to Monday to avoid a cross-London backtrack and Sunday closing conflict.</p><button class="button text" data-action="nav" data-view="trip">Review smart itinerary ${icon('arrow')}</button></div>
+    <div class="card"><div class="card-top"><div><div class="eyebrow">Practical correction</div><h3>Plan changed for daylight</h3></div><span class="card-icon sun">${icon('sun')}</span></div><p>The late London arrival now stays close to Wombat’s with an 18:00 Sky Garden visit. Royal London moves to Monday before the protected 16:00 FRAMELESS booking, while Calton Hill moves to Edinburgh’s dedicated city day.</p><button class="button text" data-action="nav" data-view="trip">Review smart itinerary ${icon('arrow')}</button></div>
   </div></section>`
 }
 
