@@ -1,4 +1,4 @@
-const CACHE = 'northbound-v34'
+const CACHE = 'northbound-v35'
 const CORE = ['./', './index.html', './styles.css', './app.js', './data.js', './manifest.webmanifest', './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png']
 
 self.addEventListener('install', event => {

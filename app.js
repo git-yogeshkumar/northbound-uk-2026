@@ -99,6 +99,41 @@ const citymapperRoutes = new Map([
   ['Hostel → King’s Cross', { startCoord: '51.5104,-0.0681', startName: "Wombat's City Hostel", startAddress: '7 Dock Street, London E1 8LL', endCoord: '51.530609,-0.123949', endName: "King's Cross St Pancras", endAddress: 'Euston Road, London N1 9AL' }]
 ])
 
+const citymapperPlaces = new Map([
+  ["Wombat's City Hostel London", '51.5104,-0.0681', "Wombat's City Hostel", '7 Dock Street, London E1 8LL'],
+  ['St Katharine Docks London', '51.5079,-0.0710', 'St Katharine Docks', 'St Katharine Docks, London E1W'],
+  ['Westminster Underground Station', '51.500453,-0.124052', 'Westminster Station', 'Bridge Street, London SW1A'],
+  ['Big Ben London', '51.500729,-0.124625', 'Big Ben', 'Westminster, London SW1A 0AA'],
+  ["St James's Park London", '51.502459,-0.134810', "St James's Park", 'London SW1A 2BJ'],
+  ['Buckingham Palace London', '51.501364,-0.14189', 'Buckingham Palace', 'London SW1A 1AA'],
+  ['Trafalgar Square London', '51.50805,-0.12816', 'Trafalgar Square', 'London WC2N'],
+  ['The National Gallery London', '51.5089,-0.1283', 'The National Gallery', 'Trafalgar Square, London WC2N 5DN'],
+  ['Covent Garden London', '51.5125,-0.1225', 'Covent Garden', 'Covent Garden Piazza, London WC2E'],
+  ['WatchHouse Tower Bridge', '51.5026,-0.0738', 'WatchHouse Tower Bridge', '37 Shad Thames, London SE1 2NJ'],
+  ['Tower of London', '51.508112,-0.075949', 'Tower of London', 'London EC3N 4AB'],
+  ['Tower Bridge London', '51.505456,-0.075356', 'Tower Bridge', 'Tower Bridge Road, London SE1 2UP'],
+  ['Borough Market London', '51.5055,-0.0910', 'Borough Market', '8 Southwark Street, London SE1 1TL'],
+  ["Shakespeare's Globe London", '51.508076,-0.097194', "Shakespeare's Globe", '21 New Globe Walk, London SE1 9DT'],
+  ['London Eye', '51.503297,-0.119553', 'London Eye', 'Riverside Building, London SE1 7PB'],
+  ['Westminster Pier London', '51.50135,-0.12325', 'Westminster Pier', 'Victoria Embankment, London SW1A 2JH'],
+  ['Battersea Power Station Pier', '51.4837,-0.1456', 'Battersea Power Station Pier', 'Riverside Walk, London SW8 5BN'],
+  ['Battersea Power Station', '51.4817,-0.1444', 'Battersea Power Station', 'Circus Road West, London SW11 8AL'],
+  ['Leicester Square London', '51.510565,-0.128397', 'Leicester Square Station', 'Cranbourn Street, London WC2H 0AP'],
+  ["Neal's Yard London", '51.5144,-0.1268', "Neal's Yard", "Neal's Yard, London WC2H"],
+  ['Grounded London Aldgate', '51.5166,-0.0693', 'Grounded Aldgate', '9 Whitechapel Road, London E1 1DU'],
+  ['Westminster Abbey', '51.499292,-0.12731', 'Westminster Abbey', 'Dean’s Yard, London SW1P 3PA'],
+  ['Horse Guards Parade London', '51.5048,-0.1283', 'Horse Guards Parade', 'Whitehall, London SW1A 2AX'],
+  ['Churchill War Rooms London', '51.5021,-0.1290', 'Churchill War Rooms', 'Clive Steps, London SW1A 2AQ'],
+  ['Camden Market London', '51.541397,-0.146612', 'Camden Market', 'Camden Lock Place, London NW1 8AF'],
+  ['Kyoto Garden Holland Park London', '51.5025,-0.2030', 'Kyoto Garden', 'Holland Park, London W8 6LU'],
+  ['Sherlock Holmes Statue London', '51.522274,-0.156068', 'Baker Street Station', 'Baker Street, London NW1'],
+  ['FRAMELESS London', '51.5135,-0.1601', 'FRAMELESS', '6 Marble Arch, London W1H 7AP'],
+  ['Marble Arch London', '51.5131,-0.1589', 'Marble Arch', 'London W1H 7EJ'],
+  ['Tottenham Court Road Station London', '51.5164,-0.1303', 'Tottenham Court Road Station', 'Oxford Street, London W1D'],
+  ['Outernet London The Now Building', '51.5165,-0.1302', 'Outernet London', 'Charing Cross Road, London WC2H 8LH'],
+  ['Soho London', '51.5137,-0.1365', 'Soho', 'Soho, London W1']
+].map(([location, endCoord, endName, endAddress]) => [location, { endCoord, endName, endAddress }]))
+
 const currentDate = todayISO()
 const exactDay = days.findIndex(day => day.date === currentDate)
 const initialDay = exactDay >= 0 ? exactDay : currentDate < trip.start ? 0 : days.length - 1
@@ -465,8 +500,9 @@ function stopMarkup(day, stop) {
   const optionId = stop.branch || stop.optionId
   const selected = optionId && Object.values(state.optionSelections).includes(optionId)
   const routeOrigin = routeOrigins.get(stop.title)
-  const citymapper = stop.citymapper || citymapperRoutes.get(stop.title)
-  const routeUrl = routeOrigin ? googleRoute(routeOrigin, citymapper?.endAddress || stop.location, stop.mode) : googleDirections(stop.location, stop.mode)
+  const citymapperRoute = stop.citymapper || citymapperRoutes.get(stop.title)
+  const citymapperDestination = citymapperRoute || citymapperPlaces.get(stop.location)
+  const routeUrl = routeOrigin ? googleRoute(routeOrigin, citymapperRoute?.endAddress || stop.location, stop.mode) : googleDirections(stop.location, stop.mode)
   return `<article class="stop-card motion-reveal ${done ? 'done' : ''} ${selected ? 'selected-option' : ''} ${hasPhoto ? 'image-stop' : 'compact-stop'}" data-motion-key="stop:${escapeHtml(key)}">
     <div class="stop-clock">${stop.time}<br><span style="color:var(--muted);font-weight:500">${stop.end || ''}</span></div>
     <div class="stop-dot">${icon(done ? 'check' : modeIcon(stop.mode))}</div>
@@ -476,7 +512,7 @@ function stopMarkup(day, stop) {
       <div class="stop-route">${icon('route')}<span><strong>How to get there</strong><br>${stop.route}</span></div>
       <p class="stop-detail">${stop.detail}${stop.cost ? ` <strong>Cost: ${stop.cost}.</strong>` : ''}</p>
       ${stop.dropOptions ? `<div class="boat-fares"><div class="boat-fares-head"><div><strong>Where can you get off?</strong><span>Fare order: Sunday contactless / online or app / pier machine</span></div><span class="winner">Current 2026 fares</span></div><div class="boat-fare-list">${stop.dropOptions.map(option => `<div class="boat-fare-row ${option.recommended ? 'recommended' : ''}"><div><strong>${option.name}${option.recommended ? ' · Recommended' : ''}</strong><span>${option.time} · ${option.ride} · ${option.zone}</span></div><div class="boat-price">${option.fare}</div><p>${option.note}</p></div>`).join('')}</div><p class="note">Prices are current adult references for 25 October 2026. River travel is not included in TfL daily capping. Groups of 10 or more can request an advance 10% group discount.</p></div>` : ''}
-      <div class="stop-actions"><div class="map-actions" role="group" aria-label="Maps and directions"><a class="map-action google" href="${routeUrl}" target="_blank" rel="noopener" aria-label="${routeOrigin ? 'Open route in Google Maps' : 'Open directions in Google Maps'}" data-tooltip="${routeOrigin ? 'Google route' : 'Google directions'}">${mapProviderIcon('google')}<span class="action-kind">${icon('route')}</span></a>${citymapper ? `<a class="map-action citymapper" href="${citymapperDirections(citymapper)}" target="_blank" rel="noopener" aria-label="Open route in Citymapper" data-tooltip="Citymapper route">${mapProviderIcon('citymapper')}<span class="action-kind">${icon('train')}</span></a>` : ''}<a class="map-action google" href="${googlePlace(stop.location)}" target="_blank" rel="noopener" aria-label="Open place in Google Maps" data-tooltip="Google place">${mapProviderIcon('google')}<span class="action-kind">${icon('map')}</span></a>${citymapper ? `<a class="map-action citymapper" href="${citymapperPlace(citymapper)}" target="_blank" rel="noopener" aria-label="Open place in Citymapper" data-tooltip="Citymapper place">${mapProviderIcon('citymapper')}<span class="action-kind">${icon('pin')}</span></a>` : ''}</div>${stop.booking ? `<button class="button small" data-action="booking-link" data-booking="${stop.booking}">${icon('ticket')} Official booking</button>` : ''}<button class="done-toggle" data-action="toggle-stop" data-key="${escapeHtml(key)}">${icon(done ? 'check' : 'plus')} ${done ? 'Completed' : 'Mark done'}</button></div>
+      <div class="stop-actions"><div class="map-actions" role="group" aria-label="Maps and directions"><a class="map-action google" href="${routeUrl}" target="_blank" rel="noopener" aria-label="${routeOrigin ? 'Open route in Google Maps' : 'Open directions in Google Maps'}" data-tooltip="${routeOrigin ? 'Google route' : 'Google directions'}">${mapProviderIcon('google')}<span class="action-kind">${icon('route')}</span></a>${citymapperRoute ? `<a class="map-action citymapper" href="${citymapperDirections(citymapperRoute)}" target="_blank" rel="noopener" aria-label="Open route in Citymapper" data-tooltip="Citymapper route">${mapProviderIcon('citymapper')}<span class="action-kind">${icon('train')}</span></a>` : ''}<a class="map-action google" href="${googlePlace(stop.location)}" target="_blank" rel="noopener" aria-label="Open place in Google Maps" data-tooltip="Google place">${mapProviderIcon('google')}<span class="action-kind">${icon('map')}</span></a>${citymapperDestination ? `<a class="map-action citymapper" href="${citymapperPlace(citymapperDestination)}" target="_blank" rel="noopener" aria-label="Open place in Citymapper" data-tooltip="Citymapper place">${mapProviderIcon('citymapper')}<span class="action-kind">${icon('pin')}</span></a>` : ''}</div>${stop.booking ? `<button class="button small" data-action="booking-link" data-booking="${stop.booking}">${icon('ticket')} Official booking</button>` : ''}<button class="done-toggle" data-action="toggle-stop" data-key="${escapeHtml(key)}">${icon(done ? 'check' : 'plus')} ${done ? 'Completed' : 'Mark done'}</button></div>
     </div>
   </article>`
 }
