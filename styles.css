@@ -1339,9 +1339,14 @@ body { background: #e7e4de; }
 .map-action:hover::after, .map-action:focus-visible::after { opacity: 1; transform: translate(-50%,0); }
 @media (hover: none) { .map-action::after { display: none; } }
 
-.card.flight-card { isolation: isolate; display: flex; min-width: 0; min-height: 250px; overflow: hidden; flex-direction: column; border: 0; background: #1d1d1f; color: #f5f5f7; box-shadow: none; }
+.card.flight-card { isolation: isolate; display: flex; min-width: 0; min-height: 250px; overflow: hidden; flex-direction: column; border: 0; background: #1d1d1f; color: #f5f5f7; box-shadow: none; cursor: pointer; transition: transform 220ms ease, box-shadow 220ms ease; }
+.card.flight-card:hover { transform: translateY(-2px); box-shadow: 0 18px 42px rgba(29,29,31,.18); }
 .flight-card > * { position: relative; z-index: 1; }
-.flight-card .flight-code { color: #64d2ff; }
+.flight-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.flight-card .flight-code { min-width: 0; color: #64d2ff; }
+.flight-booking-ref { display: grid; flex: 0 0 auto; gap: 2px; padding: 6px 9px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: rgba(255,255,255,.08); text-align: right; }
+.flight-booking-ref small { color: rgba(255,255,255,.5); font-size: 7px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.flight-booking-ref strong { color: #fff; font-size: 11px; letter-spacing: .08em; }
 .flight-card .flight-route { min-width: 0; gap: 10px; }
 .flight-card .flight-route > svg { flex: 0 0 auto; width: 19px; height: 19px; color: #64d2ff; }
 .flight-card .airport { min-width: 0; color: #fff; font-size: clamp(27px, 5vw, 36px); font-weight: 600; line-height: 1; white-space: nowrap; }

@@ -658,7 +658,7 @@ function checkinText(flight) {
 
 function flightCard(flight, index) {
   const duration = flightDurationText(flight)
-  return `<article class="card flight-card"><div class="flight-code">${escapeHtml(flight.airline || 'AIRLINE')} · ${escapeHtml(flight.flightNumber || 'FLIGHT')}</div><div class="flight-route"><span class="airport">${escapeHtml(flight.from || 'FROM')}</span><span class="route-line"></span>${icon('plane')}<span class="airport">${escapeHtml(flight.to || 'TO')}</span></div><div class="flight-schedule"><div class="flight-time"><small>Departs · ${escapeHtml(flight.from || '—')}</small><strong>${formatFlightDate(flight.departure, 'Departure not set')}</strong></div><div class="flight-duration">${icon('clock')}<small>Travel time</small><strong>${escapeHtml(duration)}</strong></div><div class="flight-time arrival"><small>Arrives · ${escapeHtml(flight.to || '—')}</small><strong>${formatFlightDate(flight.arrival, 'Arrival not set')}</strong></div></div><div class="countdown">${icon('clock')}<span>${checkinText(flight)}</span></div><div class="stop-actions"><button class="button ghost small" data-action="edit-flight" data-index="${index}">${icon('edit')} Edit</button><button class="button ghost small" data-action="calendar-flight" data-index="${index}">${icon('calendar')} Calendar</button>${safeUrl(flight.airlineUrl) ? `<a class="button ghost small" href="${escapeHtml(safeUrl(flight.airlineUrl))}" target="_blank" rel="noopener">Airline ${icon('external')}</a>` : ''}<button class="button ghost small" data-action="delete-flight" data-index="${index}">${icon('trash')} Remove</button></div></article>`
+  return `<article class="card flight-card" data-flight-index="${index}" tabindex="0" aria-label="Edit ${escapeHtml(flight.flightNumber || 'flight')} details"><div class="flight-card-head"><div class="flight-code">${escapeHtml(flight.airline || 'AIRLINE')} · ${escapeHtml(flight.flightNumber || 'FLIGHT')}</div>${flight.bookingRef ? `<span class="flight-booking-ref"><small>Booking ref</small><strong>${escapeHtml(String(flight.bookingRef).toUpperCase())}</strong></span>` : ''}</div><div class="flight-route"><span class="airport">${escapeHtml(flight.from || 'FROM')}</span><span class="route-line"></span>${icon('plane')}<span class="airport">${escapeHtml(flight.to || 'TO')}</span></div><div class="flight-schedule"><div class="flight-time"><small>Departs · ${escapeHtml(flight.from || '—')}</small><strong>${formatFlightDate(flight.departure, 'Departure not set')}</strong></div><div class="flight-duration">${icon('clock')}<small>Travel time</small><strong>${escapeHtml(duration)}</strong></div><div class="flight-time arrival"><small>Arrives · ${escapeHtml(flight.to || '—')}</small><strong>${formatFlightDate(flight.arrival, 'Arrival not set')}</strong></div></div><div class="countdown">${icon('clock')}<span>${checkinText(flight)}</span></div><div class="stop-actions"><button class="button ghost small" data-action="edit-flight" data-index="${index}">${icon('edit')} Edit</button><button class="button ghost small" data-action="calendar-flight" data-index="${index}">${icon('calendar')} Calendar</button>${safeUrl(flight.airlineUrl) ? `<a class="button ghost small" href="${escapeHtml(safeUrl(flight.airlineUrl))}" target="_blank" rel="noopener">Airline ${icon('external')}</a>` : ''}<button class="button ghost small" data-action="delete-flight" data-index="${index}">${icon('trash')} Remove</button></div></article>`
 }
 
 function renderFlights() {
@@ -914,6 +914,7 @@ function saveFlight(form) {
   const data = Object.fromEntries(new FormData(form).entries())
   data.from = data.from.toUpperCase()
   data.to = data.to.toUpperCase()
+  data.bookingRef = data.bookingRef.trim().toUpperCase()
   const departure = zonedFlightDate(data.departure, data.from)
   const arrival = zonedFlightDate(data.arrival, data.to)
   if (departure && arrival && arrival <= departure) {
@@ -971,7 +972,16 @@ app.addEventListener('pointerdown', event => {
   }, { once: true })
 })
 
+app.addEventListener('keydown', event => {
+  const card = event.target.closest('.flight-card[data-flight-index]')
+  if (!card || event.target !== card || !['Enter', ' '].includes(event.key)) return
+  event.preventDefault()
+  prefillFlightForm(state.flights[Number(card.dataset.flightIndex)], Number(card.dataset.flightIndex))
+})
+
 app.addEventListener('click', event => {
+  const flightCardTarget = event.target.closest('.flight-card[data-flight-index]')
+  if (flightCardTarget && !event.target.closest('button, a')) return prefillFlightForm(state.flights[Number(flightCardTarget.dataset.flightIndex)], Number(flightCardTarget.dataset.flightIndex))
   const target = event.target.closest('[data-action]')
   if (!target) return
   const action = target.dataset.action
