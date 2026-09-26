@@ -165,7 +165,7 @@ function navMarkup(side = false) {
 }
 
 function shell(content) {
-  return `<div class="app-shell">
+  return `<div class="app-shell view-${state.view}">
     <aside class="sidebar">
       <a class="brand" href="#" data-action="nav" data-view="today"><span class="brand-mark">${icon('compass')}</span><span class="brand-copy"><strong>Northbound</strong><span>UK · 2026</span></span></a>
       <nav class="side-nav" aria-label="Primary">${navMarkup(true)}</nav>
@@ -176,7 +176,7 @@ function shell(content) {
       <header class="mobile-topbar"><a class="brand" href="#" data-action="nav" data-view="today"><span class="brand-mark">${icon('compass')}</span><span class="brand-copy"><strong>Northbound</strong><span>UK · 2026</span></span></a><button class="icon-button" data-action="share" aria-label="Share trip">${icon('share')}</button></header>
       <div class="page">${content}</div>
     </main>
-    <nav class="bottom-nav" aria-label="Primary">${navMarkup()}</nav>
+    <nav class="bottom-nav ${state.view === 'trip' ? 'with-day-control' : ''}" aria-label="Primary">${state.view === 'trip' ? renderMobileTripNav() : `<div class="bottom-nav-items">${navMarkup()}</div>`}</nav>
     ${renderModal()}
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </div>`
@@ -257,6 +257,18 @@ function renderDayNavigator() {
   const previous = state.selectedDay - 1
   const next = state.selectedDay + 1
   return `<nav class="day-navigator" aria-label="Change itinerary day"><button data-action="select-day" data-index="${previous}" ${previous < 0 ? 'disabled' : ''} aria-label="Previous day">${icon('chevron')}<span>Previous</span></button><button class="day-navigator-current" data-action="scroll-day-top"><small>Day ${state.selectedDay + 1} of ${days.length}</small><strong>${dateLabel(day.date)} · ${day.city}</strong></button><button data-action="select-day" data-index="${next}" ${next >= days.length ? 'disabled' : ''} aria-label="Next day"><span>Next</span>${icon('chevron')}</button></nav>`
+}
+
+function renderMobileTripNav() {
+  const day = days[state.selectedDay]
+  const previous = state.selectedDay - 1
+  const next = state.selectedDay + 1
+  const navButton = id => {
+    const [, glyph, label] = navItems().find(item => item[0] === id)
+    return `<button class="nav-item" data-action="nav" data-view="${id}" aria-label="${label}">${icon(glyph)}<span>${label}</span></button>`
+  }
+  const shortDate = parseDate(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  return `<div class="trip-bottom-row"><button class="trip-day-edge previous" data-action="select-day" data-index="${previous}" ${previous < 0 ? 'disabled' : ''} aria-label="Previous day">${icon('chevron')}</button>${navButton('today')}${navButton('money')}<button class="trip-day-current" data-action="scroll-day-top" aria-label="Current itinerary day: ${dateLabel(day.date)}, ${day.city}"><strong>${shortDate}</strong><span>${day.city} · ${state.selectedDay + 1}/${days.length}</span></button>${navButton('prep')}${navButton('flights')}<button class="trip-day-edge next" data-action="select-day" data-index="${next}" ${next >= days.length ? 'disabled' : ''} aria-label="Next day">${icon('chevron')}</button></div>`
 }
 
 function stopKey(day, stop) { return `${day.date}:${stop.time}:${stop.title}` }
@@ -405,6 +417,10 @@ function centerActiveDay() {
   document.querySelector('.date-chip.active')?.scrollIntoView({ behavior: motionAllowed() ? 'smooth' : 'auto', block: 'nearest', inline: 'center' })
 }
 
+function centerActivePrepTab() {
+  document.querySelector('.prep-tabs .tab.active')?.scrollIntoView({ behavior: motionAllowed() ? 'smooth' : 'auto', block: 'nearest', inline: 'center' })
+}
+
 function stopMarkup(day, stop) {
   const key = stopKey(day, stop)
   const done = state.doneStops.has(key)
@@ -505,7 +521,7 @@ function renderPrep() {
   if (state.prepTab === 'bookings') content = `<div class="grid three">${bookings.map(bookingCard).join('')}</div>`
   if (state.prepTab === 'transport') content = transportMarkup()
   if (state.prepTab === 'sources') content = sourcesMarkup()
-  return `<div class="section-head"><div><div class="eyebrow">Before the trip</div><h2>Ready, without the scramble</h2><p>Everything important, saved locally and available offline.</p></div></div><div class="tabs" role="tablist">${tabs.map(([id,label]) => `<button class="tab ${state.prepTab === id ? 'active' : ''}" data-action="prep-tab" data-tab="${id}">${label}</button>`).join('')}</div><section class="section" style="margin-top:18px">${content}</section>`
+  return `<div class="section-head"><div><div class="eyebrow">Before the trip</div><h2>Ready, without the scramble</h2><p>Everything important, saved locally and available offline.</p></div></div><div class="tabs prep-tabs" role="tablist" aria-label="Preparation sections">${tabs.map(([id,label]) => `<button class="tab ${state.prepTab === id ? 'active' : ''}" data-action="prep-tab" data-tab="${id}">${label}</button>`).join('')}</div><section class="section" style="margin-top:18px">${content}</section>`
 }
 
 function formatFlightDate(value) {
@@ -546,7 +562,7 @@ function render() {
   if (state.view === 'prep') content = renderPrep()
   if (state.view === 'flights') content = renderFlights()
   app.innerHTML = shell(content)
-  queueMicrotask(() => { hydratePhotos(); hydrateMotion(); if (state.view === 'trip') centerActiveDay() })
+  queueMicrotask(() => { hydratePhotos(); hydrateMotion(); if (state.view === 'trip') centerActiveDay(); if (state.view === 'prep') centerActivePrepTab() })
 }
 
 function toast(message) {

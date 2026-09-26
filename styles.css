@@ -250,6 +250,7 @@ button { color: inherit; }
 .timeline { position: relative; display: grid; gap: 12px; }
 .timeline::before { content: ''; position: absolute; top: 18px; bottom: 18px; left: 17px; width: 1px; background: var(--line); }
 .stop-card { position: relative; display: grid; grid-template-columns: 36px minmax(0,1fr); gap: 12px; }
+.stop-clock { display: none; }
 .stop-dot { z-index: 1; display: grid; place-items: center; width: 35px; height: 35px; border: 5px solid var(--paper); border-radius: 50%; background: var(--forest); color: var(--sun); }
 .stop-dot svg { width: 13px; height: 13px; }
 .stop-card.done .stop-dot { background: var(--sage); color: var(--forest); }
@@ -395,7 +396,7 @@ button { color: inherit; }
   .day-hero { grid-template-columns: minmax(0,1.6fr) minmax(260px,.7fr); padding: 28px; }
   .timeline::before { left: 82px; }
   .stop-card { grid-template-columns: 64px 36px minmax(0,1fr); gap: 12px; }
-  .stop-clock { padding-top: 10px; color: var(--ink-2); font-size: 11px; font-weight: 800; text-align: right; }
+  .stop-clock { display: block; padding-top: 10px; color: var(--ink-2); font-size: 11px; font-weight: 800; text-align: right; }
   .stop-head .stop-time { display: none; }
   .modal-backdrop { align-items: center; }
   .toast { bottom: 24px; }
@@ -1212,11 +1213,118 @@ body { background: #e7e4de; }
 }
 
 @media (max-width: 619px) {
-  .option-grid.option-deck { margin-right: -18px; padding-right: 28px; }
-  .option-deck .choice-card { flex-basis: calc(100% - 30px); }
+  :root { --page-gutter: 12px; }
+  .main-shell { padding-bottom: 136px; }
+  .page { padding-top: 10px; padding-bottom: 28px; }
+  .mobile-topbar { height: 46px; padding: 0 12px; }
+  .mobile-topbar .brand-mark { width: 28px; height: 28px; }
+  .mobile-topbar .brand-copy strong { font-size: 14px; }
+  .day-switcher { position: static; top: auto; margin: 0 0 12px; padding: 6px; border-radius: 16px; }
+  .day-switcher-label { padding: 0 2px 5px; font-size: 8px; }
+  .date-strip { gap: 3px; padding: 1px 0 2px; }
+  .date-chip { flex-basis: 60px; padding: 7px 5px; border-radius: 11px; }
+  .date-chip .dow { font-size: 8px; }
+  .date-chip .num { margin: 2px 0; font-size: 19px; }
+  .date-chip .city { font-size: 8px; }
+  .day-navigator { right: 8px; bottom: calc(max(8px, env(safe-area-inset-bottom)) + 58px); left: 8px; display: grid; padding: 4px; border-radius: 17px; }
+  .day-navigator > button { min-width: 52px; padding: 6px 8px; font-size: 9px; }
+  .day-navigator .day-navigator-current { padding-right: 7px; padding-left: 7px; }
+  .day-navigator-current small { font-size: 7px; }
+  .day-navigator-current strong { font-size: 9px; }
+  .bottom-nav { right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); left: 8px; padding: 5px; border-radius: 20px; }
+  .nav-item { gap: 3px; padding: 6px 2px; font-size: 9px; }
+  .nav-item svg { width: 18px; height: 18px; }
+  .hero { min-height: auto; padding: 32px 18px 24px; border-radius: 22px; }
+  .hero h1 { font-size: clamp(38px, 12vw, 52px); line-height: .94; }
+  .hero p { margin-top: 14px; font-size: 14px; line-height: 1.45; }
+  .hero-visual { min-height: 310px; margin-top: 26px; }
+  .hero-london { height: 225px; }
+  .hero-edinburgh { height: 180px; }
+  .hero-route-badge { left: 30%; padding: 7px 10px; font-size: 9px; }
+  .section { margin-top: 38px; }
+  .section-head { gap: 8px; margin-bottom: 15px; }
+  .section-head h2 { font-size: 31px; line-height: 1.02; }
+  .section-head p { margin-top: 7px; font-size: 13px; }
+  .grid { gap: 11px; }
+  .card { padding: 16px; border-radius: 20px; }
+  .card h3 { font-size: 17px; }
+  .card p { margin-top: 8px; font-size: 13px; line-height: 1.5; }
+  .card-top { gap: 10px; }
+  .card-icon { width: 36px; height: 36px; }
+  .quick-actions { gap: 8px; }
+  .quick-action { min-height: 62px; padding: 11px; border-radius: 17px; font-size: 11px; }
+  .day-hero { min-height: 0; padding: 25px 18px 20px; border-radius: 22px; }
+  .day-hero h1 { font-size: clamp(34px, 10.5vw, 46px); line-height: .96; }
+  .day-hero p { margin-top: 10px; font-size: 14px; line-height: 1.45; }
+  .day-hero-aside { margin-top: 4px; }
+  .day-facts span { padding: 6px 8px; font-size: 9px; }
+  .day-brief-grid { gap: 11px; margin-top: 24px; }
+  .trip-notes, .pace-card, .skip-card { border-radius: 20px; }
+  .option-group { padding: 15px; border-radius: 22px; }
+  .option-group-head h3 { font-size: 18px; }
+  .option-group-head p { font-size: 12px; }
+  .choice-body { padding: 16px; }
+  .choice-body h3 { font-size: 18px; }
+  .choice-body > p, .choice-details p { font-size: 12px; }
+  .choice-cost { margin-top: 13px; font-size: 22px; }
+  .route-section { margin-top: 34px; padding: 17px 12px 21px; border-radius: 22px; }
+  .route-section .section-head h2 { font-size: 34px; }
+  .stop-body { padding: 14px; border-radius: 18px; }
+  .stop-title { font-size: 19px; }
+  .stop-detail, .stop-route { font-size: 12px; line-height: 1.5; }
+  .place-photo { height: 190px; }
+  .choice-photo, .food-photo { height: 154px; }
+  .food-card { border-radius: 20px; }
+  .food-body { padding: 14px; }
+  .option-grid.option-deck { margin-right: -12px; padding-right: 22px; padding-bottom: 17px; }
+  .option-deck .choice-card { flex-basis: calc(100% - 30px); border-radius: 20px; }
   .option-deck .choice-card + .choice-card { margin-left: 12px; }
   .option-deck .choice-card.expanded { flex-basis: calc(100% - 18px); }
-  .option-deck .choice-photo, .option-deck .choice-photo.photo-unavailable { height: 210px; }
+  .option-deck .choice-photo, .option-deck .choice-photo.photo-unavailable { height: 170px; }
+}
+
+.bottom-nav { grid-template-columns: none; }
+.bottom-nav-items { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); }
+.trip-bottom-row { display: none; }
+
+@media (max-width: 959px) {
+  .bottom-nav { display: block; }
+  .day-navigator { display: none; }
+  .trip-bottom-row { display: grid; grid-template-columns: 30px minmax(38px,1fr) minmax(38px,1fr) minmax(66px,1.35fr) minmax(38px,1fr) minmax(38px,1fr) 30px; align-items: stretch; gap: 2px; }
+  .trip-bottom-row .nav-item { padding-right: 1px; padding-left: 1px; }
+  .trip-day-edge, .trip-day-current { min-width: 0; border: 0; color: rgba(255,255,255,.76); cursor: pointer; }
+  .trip-day-edge { display: grid; place-items: center; padding: 5px 2px; border-radius: 12px; background: transparent; }
+  .trip-day-edge:hover { background: rgba(255,255,255,.1); color: white; }
+  .trip-day-edge:disabled { opacity: .22; cursor: default; }
+  .trip-day-edge svg { width: 16px; height: 16px; }
+  .trip-day-edge.previous svg { transform: rotate(180deg); }
+  .trip-day-current { display: grid; place-content: center; gap: 2px; padding: 5px 3px; border-radius: 13px; background: rgba(255,255,255,.13); text-align: center; }
+  .trip-day-current strong, .trip-day-current span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trip-day-current strong { color: white; font-size: 11px; line-height: 1.1; }
+  .trip-day-current span { color: #64d2ff; font-size: 7px; font-weight: 600; line-height: 1.1; }
+  .view-trip .main-shell { padding-bottom: 96px; }
+}
+
+@media (max-width: 619px) {
+  .main-shell, .view-trip .main-shell { padding-bottom: 82px; }
+  .trip-bottom-row { grid-template-columns: 26px minmax(35px,1fr) minmax(35px,1fr) minmax(58px,1.3fr) minmax(35px,1fr) minmax(35px,1fr) 26px; gap: 1px; }
+  .trip-bottom-row .nav-item { gap: 2px; padding-top: 5px; padding-bottom: 5px; font-size: 8px; }
+  .trip-bottom-row .nav-item svg { width: 17px; height: 17px; }
+  .trip-day-current strong { font-size: 10px; }
+  .trip-day-current span { font-size: 6px; }
+}
+
+.prep-tabs { position: sticky; z-index: 76; top: 60px; display: flex; width: fit-content; max-width: 100%; margin-right: auto; margin-left: auto; border: 1px solid rgba(29,29,31,.08); background: rgba(229,226,220,.96); box-shadow: 0 10px 28px rgba(55,48,40,.1); scrollbar-width: none; }
+.prep-tabs::-webkit-scrollbar { display: none; }
+.prep-tabs .tab { flex: 0 0 auto; }
+
+@media (max-width: 959px) {
+  .prep-tabs { top: 58px; }
+}
+
+@media (max-width: 619px) {
+  .prep-tabs { top: 50px; width: 100%; padding: 3px; }
+  .prep-tabs .tab { padding: 8px 11px; font-size: 11px; }
 }
 
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid rgba(0,113,227,.45); outline-offset: 3px; }
