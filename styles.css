@@ -1339,6 +1339,27 @@ body { background: #e7e4de; }
 .map-action:hover::after, .map-action:focus-visible::after { opacity: 1; transform: translate(-50%,0); }
 @media (hover: none) { .map-action::after { display: none; } }
 
+.card.flight-card { isolation: isolate; display: flex; min-width: 0; min-height: 250px; overflow: hidden; flex-direction: column; border: 0; background: #1d1d1f; color: #f5f5f7; box-shadow: none; }
+.flight-card > * { position: relative; z-index: 1; }
+.flight-card .flight-code { color: #64d2ff; }
+.flight-card .flight-route { min-width: 0; gap: 10px; }
+.flight-card .flight-route > svg { flex: 0 0 auto; width: 19px; height: 19px; color: #64d2ff; }
+.flight-card .airport { min-width: 0; color: #fff; font-size: clamp(27px, 5vw, 36px); font-weight: 600; line-height: 1; white-space: nowrap; }
+.flight-card .flight-date { color: rgba(255,255,255,.68); }
+.flight-card .countdown { display: flex; align-items: flex-start; gap: 8px; background: rgba(255,255,255,.09); color: #f5f5f7; line-height: 1.45; }
+.flight-card .countdown svg { flex: 0 0 auto; width: 16px; height: 16px; margin-top: 1px; color: #64d2ff; }
+.flight-card .stop-actions { margin-top: auto; padding-top: 6px; }
+.flight-card .button.ghost { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.08); color: white; }
+.flight-card .button.ghost:hover { background: rgba(255,255,255,.14); }
+@media (max-width: 619px) {
+  .card.flight-card { min-height: 0; padding: 20px; border-radius: 22px; }
+  .flight-card .flight-route { gap: 7px; }
+  .flight-card .airport { font-size: clamp(25px, 9vw, 32px); }
+  .flight-card .countdown { margin-top: 15px; padding: 10px; }
+  .flight-card .stop-actions { gap: 6px; }
+  .flight-card .button.ghost.small { flex: 1 1 auto; min-width: 0; padding-right: 9px; padding-left: 9px; }
+}
+
 @keyframes rate-spin { to { transform: rotate(360deg); } }
 .quick-amounts { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 6px; }
 .quick-amounts button { width: 100%; min-width: 0; padding: 7px 4px; text-align: center; }
