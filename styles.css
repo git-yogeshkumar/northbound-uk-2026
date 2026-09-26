@@ -1327,7 +1327,37 @@ body { background: #e7e4de; }
   .prep-tabs .tab { padding: 8px 11px; font-size: 11px; }
 }
 
+.map-actions { display: inline-flex; flex: 0 0 auto; gap: 2px; padding: 3px; border: 1px solid rgba(29,29,31,.1); border-radius: 12px; background: #f1efea; }
+.map-action { position: relative; display: grid; place-items: center; width: 34px; height: 32px; border-radius: 9px; color: #424245; text-decoration: none; transition: background 180ms ease, color 180ms ease, transform 180ms ease; }
+.map-action:hover { background: #fff; transform: translateY(-1px); }
+.map-action.google:hover { color: #1a73e8; }
+.map-action.citymapper:hover { color: #008f83; }
+.map-action .provider-icon { width: 19px; height: 19px; border-radius: 4px; }
+.map-action .action-kind { position: absolute; right: 2px; bottom: 2px; display: grid; place-items: center; width: 13px; height: 13px; border: 1px solid rgba(29,29,31,.08); border-radius: 50%; background: #fff; color: #424245; }
+.map-action .action-kind svg { width: 8px; height: 8px; stroke-width: 2.2; }
+.map-action::after { content: attr(data-tooltip); position: absolute; z-index: 20; bottom: calc(100% + 7px); left: 50%; width: max-content; max-width: 150px; padding: 5px 7px; border-radius: 7px; background: #1d1d1f; color: white; font-size: 9px; font-weight: 600; opacity: 0; pointer-events: none; transform: translate(-50%,4px); transition: opacity 160ms ease, transform 160ms ease; }
+.map-action:hover::after, .map-action:focus-visible::after { opacity: 1; transform: translate(-50%,0); }
+@media (hover: none) { .map-action::after { display: none; } }
+
+@keyframes rate-spin { to { transform: rotate(360deg); } }
+.quick-amounts { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 6px; }
+.quick-amounts button { width: 100%; min-width: 0; padding: 7px 4px; text-align: center; }
+@media (max-width: 420px) { .quick-amounts { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+.rate-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; }
+.rate-actions .rate-refresh { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: rgba(255,255,255,.54); cursor: pointer; }
+.rate-actions .rate-refresh:hover { background: rgba(255,255,255,.09); color: white; }
+.rate-actions .rate-refresh:disabled { opacity: .48; cursor: wait; }
+.rate-actions .rate-refresh svg { width: 14px; height: 14px; }
+.rate-actions .rate-refresh.loading svg { animation: rate-spin .8s linear infinite; }
+
+.money-input { transition: border-color 180ms ease; }
+.money-input:focus-within { border-bottom-color: #64d2ff; }
+.money-input input { appearance: textfield; caret-color: transparent; }
+.money-input input:focus, .money-input input:focus-visible { outline: none; box-shadow: none; }
+.money-input input::-webkit-inner-spin-button, .money-input input::-webkit-outer-spin-button { margin: 0; appearance: none; }
+
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid rgba(0,113,227,.45); outline-offset: 3px; }
+.money-input input:focus-visible { outline: none; }
 
 @media (prefers-reduced-transparency: reduce) {
   .sidebar, .mobile-topbar, .day-switcher { background: #f5f5f7; backdrop-filter: none; }

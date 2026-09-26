@@ -55,13 +55,49 @@ const inr = value => new Intl.NumberFormat('en-IN', { style: 'currency', currenc
 const todayISO = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' })
 const diffDays = (a, b) => Math.ceil((parseDate(a) - parseDate(b)) / 86400000)
 const googleDirections = (destination, mode = 'walking') => `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=${mode === 'transit' ? 'transit' : mode}`
+const googleRoute = (origin, destination, mode = 'walking') => `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=${mode === 'transit' ? 'transit' : mode}`
 const googlePlace = location => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
+const citymapperDirections = route => `https://citymapper.com/directions?${new URLSearchParams({ startcoord: route.startCoord, startname: route.startName, startaddress: route.startAddress, endcoord: route.endCoord, endname: route.endName, endaddress: route.endAddress })}`
+const citymapperPlace = route => `https://citymapper.com/directions?${new URLSearchParams({ endcoord: route.endCoord, endname: route.endName, endaddress: route.endAddress })}`
+const mapProviderIcon = provider => `<img class="provider-icon" src="https://www.google.com/s2/favicons?domain=${provider === 'google' ? 'maps.google.com' : 'citymapper.com'}&sz=64" alt="" aria-hidden="true" loading="lazy" referrerpolicy="no-referrer">`
 const safeUrl = value => {
   try {
     const url = new URL(value)
     return ['http:', 'https:'].includes(url.protocol) ? url.href : ''
   } catch { return '' }
 }
+
+const routeOrigins = new Map([
+  ['Heathrow → hostel', 'Heathrow Airport'],
+  ['Tower Hill → Westminster', 'Tower Hill Underground Station'],
+  ['The Mall → Trafalgar Square', 'Buckingham Palace London'],
+  ['Trafalgar → Covent Garden', 'Trafalgar Square London'],
+  ['National Gallery → Covent Garden', 'The National Gallery London'],
+  ['Battersea → West End', 'Battersea Power Station Underground Station'],
+  ['Camden → Baker Street', 'Camden Market London'],
+  ['Baker Street → FRAMELESS', 'Baker Street Station London'],
+  ['Hostel → King’s Cross', "Wombat's City Hostel London"],
+  ['London → Edinburgh', "London King's Cross Station"],
+  ['Waverley → hostel', 'Edinburgh Waverley Station'],
+  ['Edinburgh → Pitlochry', 'Edinburgh Scotland'],
+  ['Cairngorms → Loch Morlich', 'Cairngorms National Park Scotland'],
+  ['Aviemore → Urquhart Castle', 'Aviemore Scotland'],
+  ['Loch Ness → Fort Augustus', 'Urquhart Castle'],
+  ['Fort Augustus → Fort William', 'Fort Augustus Scotland'],
+  ['Fort William → Glencoe', 'Fort William Scotland'],
+  ['Princes Street → Waterstones', 'Princes Street Edinburgh']
+])
+const citymapperRoutes = new Map([
+  ['Heathrow → hostel', { startCoord: '51.477500,-0.461389', startName: 'Heathrow Airport', startAddress: 'Heathrow Airport, London', endCoord: '51.5104,-0.0681', endName: "Wombat's City Hostel", endAddress: '7 Dock Street, London E1 8LL' }],
+  ['Tower Hill → Westminster', { startCoord: '51.509975,-0.07654', startName: 'Tower Hill Station', startAddress: 'Tower Hill, London EC3N', endCoord: '51.500453,-0.124052', endName: 'Westminster Station', endAddress: 'Bridge Street, London SW1A' }],
+  ['The Mall → Trafalgar Square', { startCoord: '51.501364,-0.14189', startName: 'Buckingham Palace', startAddress: 'London SW1A 1AA', endCoord: '51.50805,-0.12816', endName: 'Trafalgar Square', endAddress: 'Trafalgar Square, London WC2N' }],
+  ['Trafalgar → Covent Garden', { startCoord: '51.50805,-0.12816', startName: 'Trafalgar Square', startAddress: 'Trafalgar Square, London WC2N', endCoord: '51.5125,-0.1225', endName: 'Covent Garden', endAddress: 'Covent Garden Piazza, London WC2E' }],
+  ['National Gallery → Covent Garden', { startCoord: '51.5089,-0.1283', startName: 'The National Gallery', startAddress: 'Trafalgar Square, London WC2N 5DN', endCoord: '51.5125,-0.1225', endName: 'Covent Garden', endAddress: 'Covent Garden Piazza, London WC2E' }],
+  ['Battersea → West End', { startCoord: '51.47950,-0.14200', startName: 'Battersea Power Station', startAddress: 'Battersea Power Station, London SW11', endCoord: '51.510565,-0.128397', endName: 'Leicester Square Station', endAddress: 'Cranbourn Street, London WC2H 0AP' }],
+  ['Camden → Baker Street', { startCoord: '51.541397,-0.146612', startName: 'Camden Market', startAddress: 'Camden Lock Place, London NW1 8AF', endCoord: '51.5222742,-0.1560683', endName: 'Baker Street Station', endAddress: 'Baker Street, London NW1' }],
+  ['Baker Street → FRAMELESS', { startCoord: '51.5222742,-0.1560683', startName: 'Baker Street Station', startAddress: 'Baker Street, London NW1', endCoord: '51.5135,-0.1601', endName: 'FRAMELESS', endAddress: '6 Marble Arch, London W1H 7AP' }],
+  ['Hostel → King’s Cross', { startCoord: '51.5104,-0.0681', startName: "Wombat's City Hostel", startAddress: '7 Dock Street, London E1 8LL', endCoord: '51.530609,-0.123949', endName: "King's Cross St Pancras", endAddress: 'Euston Road, London N1 9AL' }]
+])
 
 const currentDate = todayISO()
 const exactDay = days.findIndex(day => day.date === currentDate)
@@ -125,6 +161,7 @@ const state = {
   rate: rateCache?.rate || null,
   rateDate: rateCache?.date || null,
   rateLoading: false,
+  converterAmount: store.get('northbound-converter-amount', '1'),
   flights: store.get('northbound-flights', []),
   modal: null,
   installPrompt: null,
@@ -204,7 +241,7 @@ function weatherMarkup(dayIndex = state.selectedDay) {
 
 function miniConverter() {
   const converted = state.rate ? inr(10 * state.rate) : 'Connect to refresh'
-  return `<div class="card"><div class="card-top"><div><div class="eyebrow">Live exchange</div><h3>£10 in rupees</h3></div><span class="card-icon coral">${icon('wallet')}</span></div><div class="stat" style="margin-top:22px">${converted}</div><p>${state.rate ? `£1 = ${state.rate.toFixed(2)} INR · ${escapeHtml(state.rateDate || 'latest')}` : 'Keyless live rate from official-source aggregator.'}</p><button class="button text" data-action="nav" data-view="money">Open converter ${icon('arrow')}</button></div>`
+  return `<div class="card"><div class="card-top"><div><div class="eyebrow">Live exchange</div><h3>£10 in rupees</h3></div><span class="card-icon coral">${icon('wallet')}</span></div><div class="stat" style="margin-top:22px">${converted}</div><p>${state.rate ? `£1 = ${state.rate.toFixed(2)} INR · ${escapeHtml(state.rateDate || 'latest')}` : 'Keyless live rate from official-source aggregator.'}</p><button class="button text" data-action="nav" data-view="money" data-focus-converter="true">Open converter ${icon('arrow')}</button></div>`
 }
 
 function tripStatus() {
@@ -229,7 +266,7 @@ function renderToday() {
   </section>
   <section class="section"><div class="quick-actions">
     <button class="quick-action" data-action="nav" data-view="trip"><span class="card-icon coral">${icon('route')}</span>Today’s route</button>
-    <button class="quick-action" data-action="nav" data-view="money"><span class="card-icon sun">${icon('wallet')}</span>Convert money</button>
+    <button class="quick-action" data-action="nav" data-view="money" data-focus-converter="true"><span class="card-icon sun">${icon('wallet')}</span>Convert money</button>
     <button class="quick-action" data-action="nav" data-view="prep"><span class="card-icon">${icon('ticket')}</span>Reservations</button>
     <button class="quick-action" data-action="nav" data-view="flights"><span class="card-icon">${icon('plane')}</span>Flight details</button>
   </div></section>
@@ -427,6 +464,9 @@ function stopMarkup(day, stop) {
   const hasPhoto = photoEligible(stop)
   const optionId = stop.branch || stop.optionId
   const selected = optionId && Object.values(state.optionSelections).includes(optionId)
+  const routeOrigin = routeOrigins.get(stop.title)
+  const citymapper = stop.citymapper || citymapperRoutes.get(stop.title)
+  const routeUrl = routeOrigin ? googleRoute(routeOrigin, citymapper?.endAddress || stop.location, stop.mode) : googleDirections(stop.location, stop.mode)
   return `<article class="stop-card motion-reveal ${done ? 'done' : ''} ${selected ? 'selected-option' : ''} ${hasPhoto ? 'image-stop' : 'compact-stop'}" data-motion-key="stop:${escapeHtml(key)}">
     <div class="stop-clock">${stop.time}<br><span style="color:var(--muted);font-weight:500">${stop.end || ''}</span></div>
     <div class="stop-dot">${icon(done ? 'check' : modeIcon(stop.mode))}</div>
@@ -436,7 +476,7 @@ function stopMarkup(day, stop) {
       <div class="stop-route">${icon('route')}<span><strong>How to get there</strong><br>${stop.route}</span></div>
       <p class="stop-detail">${stop.detail}${stop.cost ? ` <strong>Cost: ${stop.cost}.</strong>` : ''}</p>
       ${stop.dropOptions ? `<div class="boat-fares"><div class="boat-fares-head"><div><strong>Where can you get off?</strong><span>Fare order: Sunday contactless / online or app / pier machine</span></div><span class="winner">Current 2026 fares</span></div><div class="boat-fare-list">${stop.dropOptions.map(option => `<div class="boat-fare-row ${option.recommended ? 'recommended' : ''}"><div><strong>${option.name}${option.recommended ? ' · Recommended' : ''}</strong><span>${option.time} · ${option.ride} · ${option.zone}</span></div><div class="boat-price">${option.fare}</div><p>${option.note}</p></div>`).join('')}</div><p class="note">Prices are current adult references for 25 October 2026. River travel is not included in TfL daily capping. Groups of 10 or more can request an advance 10% group discount.</p></div>` : ''}
-      <div class="stop-actions"><a class="button secondary small" href="${googleDirections(stop.location, stop.mode)}" target="_blank" rel="noopener">${icon('route')} Directions</a><a class="button secondary small" href="${googlePlace(stop.location)}" target="_blank" rel="noopener">${icon('map')} Map</a>${stop.booking ? `<button class="button small" data-action="booking-link" data-booking="${stop.booking}">${icon('ticket')} Official booking</button>` : ''}<button class="done-toggle" data-action="toggle-stop" data-key="${escapeHtml(key)}">${icon(done ? 'check' : 'plus')} ${done ? 'Completed' : 'Mark done'}</button></div>
+      <div class="stop-actions"><div class="map-actions" role="group" aria-label="Maps and directions"><a class="map-action google" href="${routeUrl}" target="_blank" rel="noopener" aria-label="${routeOrigin ? 'Open route in Google Maps' : 'Open directions in Google Maps'}" data-tooltip="${routeOrigin ? 'Google route' : 'Google directions'}">${mapProviderIcon('google')}<span class="action-kind">${icon('route')}</span></a>${citymapper ? `<a class="map-action citymapper" href="${citymapperDirections(citymapper)}" target="_blank" rel="noopener" aria-label="Open route in Citymapper" data-tooltip="Citymapper route">${mapProviderIcon('citymapper')}<span class="action-kind">${icon('train')}</span></a>` : ''}<a class="map-action google" href="${googlePlace(stop.location)}" target="_blank" rel="noopener" aria-label="Open place in Google Maps" data-tooltip="Google place">${mapProviderIcon('google')}<span class="action-kind">${icon('map')}</span></a>${citymapper ? `<a class="map-action citymapper" href="${citymapperPlace(citymapper)}" target="_blank" rel="noopener" aria-label="Open place in Citymapper" data-tooltip="Citymapper place">${mapProviderIcon('citymapper')}<span class="action-kind">${icon('pin')}</span></a>` : ''}</div>${stop.booking ? `<button class="button small" data-action="booking-link" data-booking="${stop.booking}">${icon('ticket')} Official booking</button>` : ''}<button class="done-toggle" data-action="toggle-stop" data-key="${escapeHtml(key)}">${icon(done ? 'check' : 'plus')} ${done ? 'Completed' : 'Mark done'}</button></div>
     </div>
   </article>`
 }
@@ -461,11 +501,11 @@ function renderTrip() {
 }
 
 function converterMarkup() {
-  const value = state.rate ? 10 * state.rate : null
-  return `<div class="converter"><div class="converter-title"><div><div class="eyebrow">GBP → INR</div><h2>Quick converter</h2></div><span class="rate-badge">${state.rate ? `£1 = ₹${state.rate.toFixed(2)}` : state.rateLoading ? 'Refreshing…' : 'Rate unavailable'}</span></div>
-    <div class="money-input"><span>£</span><input id="gbp-amount" inputmode="decimal" type="number" min="0" step="0.01" value="10" aria-label="Amount in British pounds"></div>
-    <div class="converted"><span class="converted-label">Indian rupees</span><strong class="converted-value" id="inr-output">${value ? inr(value) : '—'}</strong></div>
-    <div class="quick-amounts">${[1,5,10,20,50,100].map(amount => `<button data-action="quick-amount" data-amount="${amount}">£${amount}</button>`).join('')}<button data-action="refresh-rate">${icon('refresh')} Refresh</button></div>
+  const value = state.rate && state.converterAmount !== '' ? Number(state.converterAmount) * state.rate : null
+  return `<div class="converter"><div class="converter-title"><div><div class="eyebrow">GBP → INR</div><h2>Quick converter</h2></div><div class="rate-actions"><span class="rate-badge">${state.rate ? `£1 = ₹${state.rate.toFixed(2)}` : state.rateLoading ? 'Refreshing…' : 'Rate unavailable'}</span><button class="rate-refresh ${state.rateLoading ? 'loading' : ''}" data-action="refresh-rate" aria-label="Refresh exchange rate" title="Refresh exchange rate" ${state.rateLoading ? 'disabled' : ''}>${icon('refresh')}</button></div></div>
+    <div class="money-input"><span>£</span><input id="gbp-amount" inputmode="decimal" type="text" value="${escapeHtml(state.converterAmount)}" autocomplete="off" aria-label="Amount in British pounds"></div>
+    <div class="converted"><span class="converted-label">Indian rupees</span><strong class="converted-value" id="inr-output">${value !== null ? inr(value) : '—'}</strong></div>
+    <div class="quick-amounts">${[1,5,10,20,50,100].map(amount => `<button data-action="quick-amount" data-amount="${amount}">£${amount}</button>`).join('')}</div>
     <div class="note" style="color:rgba(255,255,255,.55)">Live mid-market reference from Frankfurter · ${state.rateDate || 'connect to load'}. Your card or cash rate may include a markup.</div></div>`
 }
 
@@ -574,9 +614,10 @@ function toast(message) {
   toast.timer = setTimeout(() => node.classList.remove('show'), 2600)
 }
 
-function navigate(view) {
+function navigate(view, focusConverter = false) {
   if (view === state.view) {
     window.scrollTo({ top: 0, behavior: motionAllowed() ? 'smooth' : 'auto' })
+    if (view === 'money' && focusConverter) requestAnimationFrame(() => document.querySelector('#gbp-amount')?.focus({ preventScroll: true }))
     return
   }
   const current = navItems().findIndex(item => item[0] === state.view)
@@ -585,7 +626,10 @@ function navigate(view) {
     state.view = view
     store.set('northbound-view', view)
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
-  }, next >= current ? 'forward' : 'backward').then(refreshAsync)
+  }, next >= current ? 'forward' : 'backward').then(() => {
+    refreshAsync()
+    if (view === 'money' && focusConverter) requestAnimationFrame(() => document.querySelector('#gbp-amount')?.focus({ preventScroll: true }))
+  })
 }
 
 function showPrepTab(tab) {
@@ -825,7 +869,7 @@ app.addEventListener('click', event => {
   const target = event.target.closest('[data-action]')
   if (!target) return
   const action = target.dataset.action
-  if (action === 'nav') { event.preventDefault(); navigate(target.dataset.view); return }
+  if (action === 'nav') { event.preventDefault(); navigate(target.dataset.view, target.dataset.focusConverter === 'true'); return }
   if (action === 'share') return shareTrip(false)
   if (action === 'share-day') return shareTrip(true)
   if (action === 'install') {
@@ -909,7 +953,7 @@ app.addEventListener('click', event => {
   if (action === 'prep-tab') return showPrepTab(target.dataset.tab)
   if (action === 'quick-amount') {
     const input = document.querySelector('#gbp-amount')
-    if (input) { input.value = target.dataset.amount; updateConversion(input.value) }
+    if (input) setConverterAmount(target.dataset.amount, input)
     return
   }
   if (action === 'refresh-rate') return loadRate(true)
@@ -963,17 +1007,52 @@ app.addEventListener('change', event => {
   }
 })
 
+app.addEventListener('focusin', event => {
+  if (event.target.id !== 'gbp-amount') return
+  event.target.dataset.replaceNext = 'true'
+  requestAnimationFrame(() => event.target.setSelectionRange(event.target.value.length, event.target.value.length))
+})
+
+app.addEventListener('beforeinput', event => {
+  if (event.target.id !== 'gbp-amount' || event.target.dataset.replaceNext !== 'true') return
+  if (event.inputType.startsWith('delete')) {
+    event.preventDefault()
+    event.target.dataset.replaceNext = 'false'
+    setConverterAmount('', event.target)
+    return
+  }
+  if (!event.inputType.startsWith('insert') || event.data === null) return
+  const incoming = event.data.replace(',', '.').replace(/[^\d.]/g, '')
+  event.preventDefault()
+  if (!incoming) return
+  const amount = incoming.startsWith('.') ? `0${incoming}` : incoming
+  event.target.dataset.replaceNext = 'false'
+  setConverterAmount(amount, event.target)
+  requestAnimationFrame(() => event.target.setSelectionRange(amount.length, amount.length))
+})
+
 app.addEventListener('input', event => {
-  if (event.target.id === 'gbp-amount') updateConversion(event.target.value)
+  if (event.target.id !== 'gbp-amount') return
+  const parts = event.target.value.replace(',', '.').split('.')
+  const amount = parts.shift().replace(/\D/g, '') + (parts.length ? `.${parts.join('').replace(/\D/g, '')}` : '')
+  event.target.dataset.replaceNext = 'false'
+  setConverterAmount(amount, event.target)
 })
 
 app.addEventListener('submit', event => {
   if (event.target.id === 'flight-form') { event.preventDefault(); saveFlight(event.target) }
 })
 
+function setConverterAmount(amount, input = document.querySelector('#gbp-amount')) {
+  state.converterAmount = amount
+  store.set('northbound-converter-amount', amount)
+  if (input && input.value !== amount) input.value = amount
+  updateConversion(amount)
+}
+
 function updateConversion(amount) {
   const output = document.querySelector('#inr-output')
-  if (output) output.textContent = state.rate ? inr((Number(amount) || 0) * state.rate) : '—'
+  if (output) output.textContent = state.rate && amount !== '' ? inr((Number(amount) || 0) * state.rate) : '—'
 }
 
 window.addEventListener('beforeinstallprompt', event => {
@@ -983,7 +1062,16 @@ window.addEventListener('beforeinstallprompt', event => {
 window.addEventListener('online', () => { state.online = true; render(); refreshAsync() })
 window.addEventListener('offline', () => { state.online = false; render(); toast('Offline mode: saved trip remains available') })
 
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'))
+if ('serviceWorker' in navigator) window.addEventListener('load', async () => {
+  if (['localhost', '127.0.0.1'].includes(location.hostname)) {
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    await Promise.all(registrations.map(registration => registration.unregister()))
+    const cacheKeys = await caches.keys()
+    await Promise.all(cacheKeys.filter(key => key.startsWith('northbound-')).map(key => caches.delete(key)))
+    return
+  }
+  navigator.serviceWorker.register('./sw.js')
+})
 
 render()
 refreshAsync()
